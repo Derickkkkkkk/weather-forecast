@@ -51,6 +51,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.google.gson.annotations.SerializedName
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
 class MainActivity : ComponentActivity() {
@@ -118,10 +122,7 @@ fun WeatherApp() {
             modifier = Modifier.padding(paddingValues)
         ) {
             composable("weather") {
-                SettingsScreen(navController, isCelsius,
-                    onTemperatureUnitChange = { newUnit ->
-                        isCelsius = newUnit
-                    })
+                WeatherScreen(isCelsius)
             }
             composable("settings") {
                 SettingsScreen(navController, isCelsius,
@@ -129,6 +130,38 @@ fun WeatherApp() {
                         isCelsius = newUnit
                     })
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WeatherScreen(isCelsius: Boolean) {
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Singapore") },
+                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                    containerColor = Color(0xFF56CCFC),
+                    titleContentColor = Color.White
+                )
+            )
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF5ACFF7),
+                            Color(0xFF709DF8)
+                        )
+                    )
+                )
+                .padding(paddingValues)
+        ) {
         }
     }
 }
