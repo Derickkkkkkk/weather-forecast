@@ -52,9 +52,87 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.google.gson.annotations.SerializedName
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.GET
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+data class WeatherResponse(
+    @SerializedName("items") val items: List<WeatherItem>,
+    @SerializedName("api_info") val apiInfo: ApiInfo?
+)
+
+data class ApiInfo(
+    @SerializedName("status") val status: String
+)
+
+data class WeatherItem(
+    @SerializedName("update_timestamp") val updateTimestamp: String,
+    @SerializedName("timestamp") val timestamp: String,
+    @SerializedName("valid_period") val validPeriod: ValidPeriod,
+    @SerializedName("general") val general: GeneralWeather,
+    @SerializedName("periods") val periods: List<Period>
+)
+
+data class ValidPeriod(
+    @SerializedName("start") val start: String,
+    @SerializedName("end") val end: String
+)
+
+data class GeneralWeather(
+    @SerializedName("forecast") val forecast: String,
+    @SerializedName("relative_humidity") val relativeHumidity: Humidity,
+    @SerializedName("temperature") val temperature: Temperature,
+    @SerializedName("wind") val wind: Wind
+)
+
+data class Humidity(
+    @SerializedName("high") val high: Int,
+    @SerializedName("low") val low: Int
+)
+
+data class Temperature(
+    @SerializedName("high") val high: Int,
+    @SerializedName("low") val low: Int
+)
+
+data class Wind(
+    @SerializedName("direction") val direction: String,
+    @SerializedName("speed") val speed: WindSpeed
+)
+
+data class WindSpeed(
+    @SerializedName("high") val high: Int,
+    @SerializedName("low") val low: Int
+)
+
+data class Period(
+    @SerializedName("time") val time: ValidPeriod,
+    @SerializedName("regions") val regions: Map<String, String>
+)
+
+interface WeatherApi {
+    @GET("v1/environment/24-hour-weather-forecast")
+    fun getWeather(): retrofit2.Call<WeatherResponse>
+}
+
+object RetrofitClient {
+    private val retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl("https://api.data.gov.sg/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    val weatherApi: WeatherApi by lazy {
+        retrofit.create(WeatherApi::class.java)
+    }
+}
 
 
 class MainActivity : ComponentActivity() {
@@ -137,32 +215,21 @@ fun WeatherApp() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(isCelsius: Boolean) {
+    var weatherItems by remember { mutableStateOf<List<WeatherItem>?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Singapore") },
-                colors = TopAppBarDefaults.mediumTopAppBarColors(
-                    containerColor = Color(0xFF56CCFC),
-                    titleContentColor = Color.White
-                )
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF5ACFF7),
-                            Color(0xFF709DF8)
-                        )
-                    )
-                )
-                .padding(paddingValues)
-        ) {
-        }
+    LaunchedEffect(Unit) {
+        fetchWeather(
+            onSuccess = { items ->
+                weatherItems = items
+                isLoading = false
+            },
+            onError = { error ->
+                errorMessage = error
+                isLoading = false
+            }
+        )
     }
 }
 
@@ -241,5 +308,45 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+}
+
+fun fetchWeather(
+    onSuccess: (List<WeatherItem>) -> Unit,
+    onError: (String) -> Unit
+) {
+    val call = RetrofitClient.weatherApi.getWeather()
+
+    call.enqueue(object : Callback<WeatherResponse> {
+        override fun onResponse(
+            call: Call<WeatherResponse>,
+            response: Response<WeatherResponse>
+        ) {
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && body.items.isNotEmpty()) {
+                    onSuccess(body.items)
+                } else {
+                    onError("No Data.")
+                }
+            } else {
+                onError("Network error: ${response.code()}")
+            }
+        }
+
+        override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
+            onError(t.message ?: "Network Error.")
+        }
+    })
+}
+
+fun formatTime(timestamp: String): String {
+    return try {
+        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'+08:00'", Locale.US)
+        val date = format.parse(timestamp)
+        val outputFormat = SimpleDateFormat("HH:mm", Locale.US)
+        outputFormat.format(date ?: Date())
+    } catch (e: Exception) {
+        timestamp
     }
 }
