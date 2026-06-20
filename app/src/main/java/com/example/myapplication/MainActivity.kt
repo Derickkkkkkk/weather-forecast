@@ -231,6 +231,202 @@ fun WeatherScreen(isCelsius: Boolean) {
             }
         )
     }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Singapore") },
+                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                    containerColor = Color(0xFF56CCFC),
+                    titleContentColor = Color.White
+                )
+            )
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF5ACFF7),
+                            Color(0xFF709DF8)
+                        )
+                    )
+                )
+                .padding(paddingValues)
+        ) {
+            when {
+                isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+
+                errorMessage != null -> {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = errorMessage ?: "Failed to load resource.",
+                            modifier = Modifier.padding(16.dp),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+
+                weatherItems != null && weatherItems!!.isNotEmpty() -> {
+                    WeatherContent(weatherItems!![0], isCelsius)
+                }
+
+                else -> {
+                    Text("No data.", modifier = Modifier.align(Alignment.Center))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WeatherContent(item: WeatherItem, isCelsius: Boolean) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            GeneralWeatherCard(item.general, isCelsius)
+        }
+        items(item.periods) { period ->
+            PeriodWeatherCard(period)
+        }
+    }
+}
+
+@Composable
+fun GeneralWeatherCard(general: GeneralWeather, isCelsius: Boolean) {
+    Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = general.forecast,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1565C0)
+            )
+            Text(
+                text = if (isCelsius) {
+                    "${general.temperature.high}°C"
+                } else {
+                    "${celsiusToFahrenheit(general.temperature.high)}°F"
+                },
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1565C0)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            WeatherInfoItem(
+                "Temperature", if (isCelsius) {
+                    "${general.temperature.low}°C"
+                } else {
+                    "${celsiusToFahrenheit(general.temperature.low)}°F"
+                }
+            )
+            WeatherInfoItem(
+                "Humidity",
+                "${general.relativeHumidity.low}-${general.relativeHumidity.high}%"
+            )
+            WeatherInfoItem("Wind", general.wind.direction)
+            WeatherInfoItem("Speed", "${general.wind.speed.low}-${general.wind.speed.high} km/h")
+        }
+    }
+}
+
+fun celsiusToFahrenheit(celsius: Int): Int {
+    return (celsius * 9 / 5 + 32)
+}
+
+@Composable
+fun PeriodWeatherCard(period: Period) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White.copy(alpha = 0.2f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "${formatTime(period.time.start)} - ${formatTime(period.time.end)}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF1565C0)
+            )
+
+            val regionList = listOf("north", "south", "east", "west", "central")
+
+            regionList.forEach { region ->
+                val weather = period.regions[region]
+                if (weather != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = region,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF1565C0)
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = weather,
+                                fontSize = 14.sp,
+                                color = Color(0xFF1565C0)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WeatherInfoItem(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            color = Color(0xFF1565C0)
+        )
+        Text(
+            text = value,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF1565C0)
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
